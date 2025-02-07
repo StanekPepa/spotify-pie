@@ -8,6 +8,9 @@ dependencies:
   '@tailwindcss/vite':
     specifier: ^4.0.3
     version: 4.0.3(vite@6.1.0)
+  chart.js:
+    specifier: ^4.4.7
+    version: 4.4.7
   pinia:
     specifier: ^2.3.1
     version: 2.3.1(vue@3.5.13)
@@ -17,6 +20,9 @@ dependencies:
   vue:
     specifier: ^3.5.13
     version: 3.5.13
+  vue-chartjs:
+    specifier: ^5.3.2
+    version: 5.3.2(chart.js@4.4.7)(vue@3.5.13)
   vue-router:
     specifier: ^4.5.0
     version: 4.5.0(vue@3.5.13)
@@ -718,6 +724,10 @@ packages:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
     dev: true
+
+  /@kurkle/color@0.3.4:
+    resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
+    dev: false
 
   /@malept/cross-spawn-promise@2.0.0:
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
@@ -1728,6 +1738,13 @@ packages:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
     dev: true
+
+  /chart.js@4.4.7:
+    resolution: {integrity: sha512-pwkcKfdzTMAU/+jNosKhNL2bHtJc/sSmYgVbuGTEDhzkrhmyihmP7vUc/5ZK9WopidMDHNe3Wm7jOd/WhuHWuw==}
+    engines: {pnpm: '>=8'}
+    dependencies:
+      '@kurkle/color': 0.3.4
+    dev: false
 
   /chownr@2.0.0:
     resolution: {integrity: sha512-bIomtDF5KGpdogkLd9VspvFzk9KfpyyGlS8YFVZl7TGPBHL5snIOnxeshwVgPteQ9b4Eydl+pVbIyE1DcvCWgQ==}
@@ -4246,6 +4263,16 @@ packages:
       rollup: 4.34.4
     optionalDependencies:
       fsevents: 2.3.3
+
+  /vue-chartjs@5.3.2(chart.js@4.4.7)(vue@3.5.13):
+    resolution: {integrity: sha512-NrkbRRoYshbXbWqJkTN6InoDVwVb90C0R7eAVgMWcB9dPikbruaOoTFjFYHE/+tNPdIe6qdLCDjfjPHQ0fw4jw==}
+    peerDependencies:
+      chart.js: ^4.1.1
+      vue: ^3.0.0-0 || ^2.7.0
+    dependencies:
+      chart.js: 4.4.7
+      vue: 3.5.13
+    dev: false
 
   /vue-demi@0.14.10(vue@3.5.13):
     resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
