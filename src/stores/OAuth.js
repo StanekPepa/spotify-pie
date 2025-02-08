@@ -69,3 +69,4 @@ export const useOAuthStore = defineStore("oauth", () => {
     logout,
   };
 });
+// pozměnit callbacky

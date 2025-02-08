@@ -17,9 +17,9 @@ export const useStatsStore = defineStore("stats", () => {
 
   // Constants
   const timeRangeOptions = [
-    { value: "short_term", label: "Last 4 Weeks" },
-    { value: "medium_term", label: "Last 6 Months" },
-    { value: "long_term", label: "All Time" },
+    { value: "short_term", label: "Poslední 4 týdny" },
+    { value: "medium_term", label: "Posledních 6 měsíců" },
+    { value: "long_term", label: "Poslední rok" },
   ];
 
   // Computed
@@ -27,9 +27,14 @@ export const useStatsStore = defineStore("stats", () => {
     if (!topArtists.value?.items) return [];
 
     const genreCounts = topArtists.value.items.reduce((acc, artist) => {
-      artist.genres.forEach((genre) => {
-        acc[genre] = (acc[genre] || 0) + 1;
-      });
+      if (!artist.genres || artist.genres.length === 0) {
+        // Handle artists with no genres
+        acc["Bez žánru"] = (acc["Bez žánru"] || 0) + 1;
+      } else {
+        artist.genres.forEach((genre) => {
+          acc[genre] = (acc[genre] || 0) + 1;
+        });
+      }
       return acc;
     }, {});
 

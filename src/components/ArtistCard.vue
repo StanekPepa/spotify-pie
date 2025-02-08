@@ -8,13 +8,15 @@ defineProps({
 
 const emit = defineEmits(['click']);
 
-const handleClick = () => {
-    emit('click', artist.spotifyUrl);
+const handleClick = (spotifyUrl) => {
+    if (spotifyUrl) {
+        window.open(spotifyUrl, '_blank', 'noopener,noreferrer');
+    }
 };
 </script>
 
 <template>
-    <div @click="handleClick"
+    <div @click="handleClick(artist.spotifyUrl)"
         class="bg-2ndbg rounded-lg overflow-hidden shadow-lg hover:scale-105 transition-transform cursor-pointer">
         <img :src="artist.image" :alt="artist.name" class="w-full h-48 object-cover" />
         <div class="p-4">

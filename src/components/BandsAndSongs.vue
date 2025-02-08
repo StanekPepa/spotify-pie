@@ -14,8 +14,26 @@ const chartData = computed(() => ({
     labels: statsStore.genrePercentages.map(genre => genre.name),
     datasets: [{
         data: statsStore.genrePercentages.map(genre => genre.percentage),
-        backgroundColor: ['#FF9B9B', '#9BFFC4', '#9BB5FF', '#FFE89B', '#FF9BE6', '#C39BFF', '#9BFFFC', '#FFB89B', '#B5FF9B', '#FF9BD7', '#9BCCFF', '#FFD89B'],
-        borderColor: '#000',
+        backgroundColor: [
+            "#a25f8b",
+            "#5360ae",
+            "#fae377",
+            "#889c55",
+            "#613860",
+            "#fb9f32",
+            "#95bdf8",
+            "#963f58",
+            "#b894d1",
+            "#a8c571",
+            "#d86680",
+            "#cbc0fa",
+            "#708735",
+            "#d1651d",
+            "#f17bdc",
+            "#b4c153",
+            "#775498",
+        ],
+        borderColor: '#454545',
         borderWidth: 1
     }]
 }));
@@ -59,27 +77,22 @@ const artists = computed(() => {
     }));
 });
 
-const openSpotifyUrl = (url) => {
-    if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-    }
-};
-</script>
 
+</script>
 <template>
     <div class="flex flex-col items-center gap-8">
-        <section class="flex w-full justify-between gap-2">
+
+        <section class="grid grid-cols-1 xl:grid-cols-2 gap-8 ">
             <Songs />
-            <div class="w-9/20 aspect-square">
-                <div class="bg-2ndbg p-6 rounded-lg w-full mx-auto aspect-square">
-                    <Pie :data="chartData" :options="chartOptions" />
-                </div>
+            <div class="bg-2ndbg p-6 rounded-lg aspect-square w-full">
+                <Pie :data="chartData" :options="chartOptions" />
             </div>
         </section>
 
-        <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-10 gap-6">
-            <ArtistCard v-for="artist in artists" :key="artist.name" :artist="artist"
-                @click="() => openSpotifyUrl(artist.spotifyUrl)" />
+
+        <section
+            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-10 gap-6 w-full">
+            <ArtistCard v-for="artist in artists" :key="artist.name" :artist="artist" />
         </section>
     </div>
 </template>

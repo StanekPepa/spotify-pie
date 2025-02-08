@@ -1,11 +1,20 @@
 <script setup>
-import { RouterLink } from 'vue-router';
-import { ref, onMounted, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useOAuthStore } from '../stores/OAuth';
 
+const route = useRoute();
 const oauthStore = useOAuthStore();
 const userProfile = ref(null);
 const showDropdown = ref(false);
+
+const isHomeActive = computed(() => {
+    return route.path === '/' || route.path === '/home';
+});
+
+const isFaqActive = computed(() => {
+    return route.path === '/faq';
+});
 
 const fetchProfile = async () => {
     try {
@@ -38,26 +47,32 @@ onMounted(fetchProfile);
     <header class="bg-2ndbg h-[5em] flex items-center px-6">
         <nav class="container mx-auto flex justify-between items-center">
             <div class="flex gap-6">
-                <RouterLink to="/home" class="text-white font-bold font-family">Home</RouterLink>
-                <RouterLink to="/faq" class="text-white font-bold font-family">FAQ</RouterLink>
+                <RouterLink to="/home" class="font-bold font-family uppercase" :class="{
+                    'text-primary': isHomeActive,
+                    'text-white hover:text-primary/80': !isHomeActive
+                }">home</RouterLink>
+                <RouterLink to="/faq" class=" font-bold font-family uppercase" :class="{
+                    'text-primary': isFaqActive,
+                    'text-white hover:text-primary/80': !isFaqActive
+                }">faq</RouterLink>
             </div>
 
             <div v-if="userProfile" class="relative">
                 <button @click="showDropdown = !showDropdown"
-                    class="flex items-center gap-3 text-white hover:opacity-80 transition-opacity cursor-pointer font-family">
+                    class="flex items-center gap-3 text-black hover:opacity-80 transition-opacity cursor-pointer font-family bg-primary px-4 py-2 rounded-full text-base">
                     <img :src="userProfile.images?.[0]?.url" alt="Profile" class="w-8 h-8 rounded-full" />
                     <span>{{ userProfile.display_name }}</span>
                 </button>
 
                 <div v-if="showDropdown"
-                    class="absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur-lg rounded-lg shadow-lg py-2 z-50"
+                    class="absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur-lg rounded-lg shadow-lg pt-2 z-50"
                     @mouseleave="showDropdown = false">
                     <div class="px-4 py-2 border-b border-primary">
                         <p class="text-white font-family">{{ userProfile.email }}</p>
                         <p class="text-gray-400 text-sm font-family">Country: {{ userProfile.country }}</p>
                     </div>
                     <button @click="oauthStore.logout()"
-                        class="w-full text-left px-4 py-2 text-red-500 hover:bg-primary hover:text-black transition-colors cursor-pointer font-family">
+                        class="w-full text-left px-4 py-2 text-red-500 hover:bg-primary hover:text-black transition cursor-pointer font-family hover:rounded-b-lg">
                         Logout
                     </button>
                 </div>
@@ -65,3 +80,6 @@ onMounted(fetchProfile);
         </nav>
     </header>
 </template>
+
+
+<!-- Dodělat tlačítko na releasese dis na stáhnutí apky po buildu electronu -->

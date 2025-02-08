@@ -8,6 +8,7 @@ const router = createRouter({
       path: "/",
       name: "login",
       component: () => import("../views/LoginView.vue"),
+      meta: { requiresAuth: false },
     },
     {
       path: "/home",
@@ -18,8 +19,8 @@ const router = createRouter({
     {
       path: "/faq",
       name: "faq",
-      component: () => import("../views/AboutView.vue"),
-      meta: { requiresAuth: true },
+      component: () => import("../views/FAQView.vue"),
+      meta: { requiresAuth: false },
     },
   ],
 });
@@ -30,9 +31,7 @@ router.beforeEach(async (to, from, next) => {
   // Handle OAuth callback if there's a hash in URL
   if (window.location.hash) {
     oauthStore.handleCallback();
-    // Clear the hash to prevent repeated processing
     window.location.hash = "";
-    // After successful login, redirect to home
     if (oauthStore.isAuthenticated) {
       return next({ name: "home" });
     }
@@ -42,6 +41,11 @@ router.beforeEach(async (to, from, next) => {
   const storedToken = localStorage.getItem("spotify_token");
   if (storedToken && !oauthStore.isAuthenticated) {
     oauthStore.accessToken = storedToken;
+  }
+
+  // Allow access to FAQ without authentication
+  if (to.name === "faq") {
+    return next();
   }
 
   // Handle protected routes
