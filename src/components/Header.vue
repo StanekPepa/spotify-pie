@@ -39,7 +39,7 @@ onMounted(fetchProfile);
         <nav class="container mx-auto flex justify-between items-center">
             <div class="flex gap-6">
                 <RouterLink to="/home" class="text-white font-bold font-family">Home</RouterLink>
-                <RouterLink to="/about" class="text-white font-bold font-family">About</RouterLink>
+                <RouterLink to="/faq" class="text-white font-bold font-family">FAQ</RouterLink>
             </div>
 
             <div v-if="userProfile" class="relative">

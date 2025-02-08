@@ -1,4 +1,5 @@
 <script setup>
+import ArtistCard from '../components/ArtistCard.vue';
 import { onMounted, onErrorCaptured, computed } from 'vue';
 import { useStatsStore } from '../stores/Stats';
 import { useRouter } from 'vue-router';
@@ -17,6 +18,18 @@ try {
   router.push('/login');
 }
 
+const artists = computed(() => {
+  if (!statsStore.topArtists?.items) return [];
+
+  return statsStore.topArtists.items.map(artist => ({
+    name: artist.name,
+    image: artist.images[0]?.url,
+    genres: artist.genres,
+    spotifyUrl: artist.external_urls?.spotify
+  }));
+});
+
+
 const openSpotifyUrl = (url) => {
   if (url) {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -31,11 +44,10 @@ const handleLimitChange = (event) => {
 };
 
 const chartData = computed(() => ({
-  labels: statsStore.artistPercentages.map(artist => artist.name),
+  labels: statsStore.genrePercentages.map(genre => genre.name),
   datasets: [{
-    data: statsStore.artistPercentages.map(artist => artist.percentage),
-    backgroundColor: ['#FF9B9B', '#9BFFC4', '#9BB5FF', '#FFE89B', '#FF9BE6', '#C39BFF', '#9BFFFC', '#FFB89B', '#B5FF9B', '#FF9BD7', '#9BCCFF', '#FFD89B'
-    ],
+    data: statsStore.genrePercentages.map(genre => genre.percentage),
+    backgroundColor: ['#FF9B9B', '#9BFFC4', '#9BB5FF', '#FFE89B', '#FF9BE6', '#C39BFF', '#9BFFFC', '#FFB89B', '#B5FF9B', '#FF9BD7', '#9BCCFF', '#FFD89B'],
     borderColor: '#000',
     borderWidth: 1
   }]
@@ -43,13 +55,29 @@ const chartData = computed(() => ({
 
 const chartOptions = {
   responsive: true,
+
   plugins: {
     legend: {
-      display: false
+      display: true,
+      position: 'bottom',
+      labels: {
+        color: '#fff',
+        font: {
+          family: 'Nunito'
+        }
+      }
     },
     tooltip: {
       callbacks: {
-        label: (context) => `${context.label}: ${context.raw}%`
+        label: (context) => {
+
+          const genre = statsStore.genrePercentages[context.dataIndex];
+          const artists = statsStore.topArtists.items
+            .filter(artist => artist.genres.includes(genre.name))
+            .map(artist => artist.name)
+            .join(', ');
+          return `${genre.name}: ${context.raw}% (${artists})`;
+        }
       }
     }
   }
@@ -76,7 +104,8 @@ onMounted(async () => {
     <div class="mb-8 flex gap-4 justify-center items-center">
       <select v-model="statsStore.selectedTimeRange" @change="statsStore.updateTimeRange($event.target.value)"
         class="bg-2ndbg text-white px-4 py-2 rounded-lg cursor-pointer appearance-none font-family">
-        <option v-for="option in statsStore.timeRangeOptions" :key="option.value" :value="option.value">
+        <option v-for="option in statsStore.timeRangeOptions" :key="option.value" :value="option.value"
+          class="font-family text-inherit">
           {{ option.label }}
         </option>
       </select>
@@ -97,38 +126,23 @@ onMounted(async () => {
 
     <div v-if="statsStore.loading" class="text-center font-family">
       <div class="animate-spin h-12 w-12 mx-auto border-4 border-primary border-t-transparent rounded-full"></div>
-      <p class="mt-4 text-white">Loading your music stats...</p>
+      <p class="mt-4 text-white font-family">Loading your music stats...</p>
     </div>
 
     <div v-else-if="statsStore.error" class="text-red-500 text-center p-4 font-family">
       {{ statsStore.error }}
     </div>
 
-    <div v-else-if="statsStore.artistPercentages.length" class="flex flex-col items-center gap-8">
-      <div>
-        <div class="bg-2ndbg p-6 rounded-lg w-full max-w-[400px] mx-auto aspect-square">
-          <Pie :data="chartData" :options="chartOptions" class="max-w-full" />
+    <div v-else-if="statsStore.genrePercentages.length" class="flex flex-col items-center gap-8">
+      <div class="w-1/3 aspect-square">
+        <div class="bg-2ndbg p-6 rounded-lg w-full mx-auto aspect-square">
+          <Pie :data="chartData" :options="chartOptions" />
         </div>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-10 gap-6">
-        <div v-for="artist in statsStore.artistPercentages" :key="artist.name"
-          @click="openSpotifyUrl(artist.spotifyUrl)"
-          class="bg-2ndbg rounded-lg overflow-hidden shadow-lg hover:scale-105 transition-transform cursor-pointer">
-          <img :src="artist.image" :alt="artist.name" class="w-full h-48 object-cover" />
-          <div class="p-4">
-            <h3 class="text-xl font-bold text-white mb-2 font-family">{{ artist.name }}</h3>
-            <div class="flex justify-between items-center">
-              <span class="text-primary font-semibold font-family">{{ artist.percentage }}%</span>
-              <div class="flex flex-wrap gap-2">
-                <span v-for="genre in artist.genres.slice(0, 2)" :key="genre"
-                  class="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-family">
-                  {{ genre }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ArtistCard v-for="artist in artists" :key="artist.name" :artist="artist"
+          @click="() => openSpotifyUrl(artist.spotifyUrl)" />
       </div>
     </div>
 
@@ -149,5 +163,16 @@ select {
   background-repeat: no-repeat;
   background-size: 1.5em 1.5em;
   padding-right: 2.5rem;
+}
+
+select option {
+  font-family:
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Open Sans',
+    'Helvetica Neue', sans-serif !important;
 }
 </style>

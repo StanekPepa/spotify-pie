@@ -22,21 +22,32 @@ export const useStatsStore = defineStore("stats", () => {
   ];
 
   // Computed
-  const artistPercentages = computed(() => {
+  const genrePercentages = computed(() => {
     if (!topArtists.value?.items) return [];
 
-    const total = topArtists.value.items.reduce(
-      (sum, artist) => sum + artist.popularity,
+    // Collect all genres and count their occurrences
+    const genreCounts = topArtists.value.items.reduce((acc, artist) => {
+      artist.genres.forEach((genre) => {
+        acc[genre] = (acc[genre] || 0) + 1;
+      });
+      return acc;
+    }, {});
+
+    // Calculate total number of genre occurrences
+    const total = Object.values(genreCounts).reduce(
+      (sum, count) => sum + count,
       0
     );
 
-    return topArtists.value.items.map((artist) => ({
-      name: artist.name,
-      percentage: ((artist.popularity / total) * 100).toFixed(1),
-      image: artist.images[0]?.url || "",
-      genres: artist.genres || [],
-      spotifyUrl: artist.external_urls?.spotify || "",
-    }));
+    // Convert to percentage and sort by count
+    return Object.entries(genreCounts)
+      .map(([genre, count]) => ({
+        name: genre,
+        percentage: ((count / total) * 100).toFixed(1),
+        count: count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Take top 10 genres
   });
 
   // Token validation
@@ -145,7 +156,7 @@ export const useStatsStore = defineStore("stats", () => {
     selectedTimeRange,
     selectedLimit,
     timeRangeOptions,
-    artistPercentages,
+    genrePercentages,
     fetchTopArtists,
     updateTimeRange,
     updateLimit,
