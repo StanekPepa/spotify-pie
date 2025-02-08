@@ -9,6 +9,7 @@ export const useStatsStore = defineStore("stats", () => {
 
   // State
   const topArtists = ref(null);
+  const topTracks = ref(null);
   const loading = ref(false);
   const error = ref(null);
   const selectedTimeRange = ref("short_term");
@@ -25,7 +26,6 @@ export const useStatsStore = defineStore("stats", () => {
   const genrePercentages = computed(() => {
     if (!topArtists.value?.items) return [];
 
-    // Collect all genres and count their occurrences
     const genreCounts = topArtists.value.items.reduce((acc, artist) => {
       artist.genres.forEach((genre) => {
         acc[genre] = (acc[genre] || 0) + 1;
@@ -33,13 +33,11 @@ export const useStatsStore = defineStore("stats", () => {
       return acc;
     }, {});
 
-    // Calculate total number of genre occurrences
     const total = Object.values(genreCounts).reduce(
       (sum, count) => sum + count,
       0
     );
 
-    // Convert to percentage and sort by count
     return Object.entries(genreCounts)
       .map(([genre, count]) => ({
         name: genre,
@@ -47,7 +45,7 @@ export const useStatsStore = defineStore("stats", () => {
         count: count,
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Take top 10 genres
+      .slice(0, 10);
   });
 
   // Token validation
@@ -103,7 +101,7 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
-  // Main fetch function
+  // Fetch top artists
   const fetchTopArtists = async () => {
     loading.value = true;
     error.value = null;
@@ -135,11 +133,44 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
+  // Fetch top tracks
+  const fetchTopTracks = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      if (!(await validateToken())) {
+        return;
+      }
+
+      const response = await fetchWithRetry(
+        `https://api.spotify.com/v1/me/top/tracks?time_range=${selectedTimeRange.value}&limit=${selectedLimit.value}`,
+        {
+          headers: {
+            Authorization: `Bearer ${oauthStore.accessToken}`,
+          },
+        }
+      );
+
+      topTracks.value = await response.json();
+    } catch (e) {
+      error.value = e.message;
+      console.error("Error fetching top tracks:", e);
+
+      if (e.message.includes("401")) {
+        router.push("/login");
+      }
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // Update functions
   function updateTimeRange(timeRange) {
     if (timeRangeOptions.some((option) => option.value === timeRange)) {
       selectedTimeRange.value = timeRange;
       fetchTopArtists();
+      fetchTopTracks();
     }
   }
 
@@ -147,10 +178,12 @@ export const useStatsStore = defineStore("stats", () => {
     const numLimit = Math.min(Math.max(Math.floor(Number(limit)) || 1, 1), 50);
     selectedLimit.value = numLimit;
     fetchTopArtists();
+    fetchTopTracks();
   }
 
   return {
     topArtists,
+    topTracks,
     loading,
     error,
     selectedTimeRange,
@@ -158,6 +191,7 @@ export const useStatsStore = defineStore("stats", () => {
     timeRangeOptions,
     genrePercentages,
     fetchTopArtists,
+    fetchTopTracks,
     updateTimeRange,
     updateLimit,
   };

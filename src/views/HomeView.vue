@@ -1,12 +1,9 @@
 <script setup>
-import ArtistCard from '../components/ArtistCard.vue';
-import { onMounted, onErrorCaptured, computed } from 'vue';
+import { onMounted, onErrorCaptured } from 'vue';
 import { useStatsStore } from '../stores/Stats';
 import { useRouter } from 'vue-router';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'vue-chartjs';
+import BandsAndSongs from '../components/BandsAndSongs.vue';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
 
 const router = useRouter();
 let statsStore;
@@ -18,68 +15,10 @@ try {
   router.push('/login');
 }
 
-const artists = computed(() => {
-  if (!statsStore.topArtists?.items) return [];
-
-  return statsStore.topArtists.items.map(artist => ({
-    name: artist.name,
-    image: artist.images[0]?.url,
-    genres: artist.genres,
-    spotifyUrl: artist.external_urls?.spotify
-  }));
-});
-
-
-const openSpotifyUrl = (url) => {
-  if (url) {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
-};
-
 const handleLimitChange = (event) => {
   const value = parseInt(event.target.value);
   if (!isNaN(value) && value >= 1 && value <= 50) {
     statsStore.selectedLimit = value;
-  }
-};
-
-const chartData = computed(() => ({
-  labels: statsStore.genrePercentages.map(genre => genre.name),
-  datasets: [{
-    data: statsStore.genrePercentages.map(genre => genre.percentage),
-    backgroundColor: ['#FF9B9B', '#9BFFC4', '#9BB5FF', '#FFE89B', '#FF9BE6', '#C39BFF', '#9BFFFC', '#FFB89B', '#B5FF9B', '#FF9BD7', '#9BCCFF', '#FFD89B'],
-    borderColor: '#000',
-    borderWidth: 1
-  }]
-}));
-
-const chartOptions = {
-  responsive: true,
-
-  plugins: {
-    legend: {
-      display: true,
-      position: 'bottom',
-      labels: {
-        color: '#fff',
-        font: {
-          family: 'Nunito'
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context) => {
-
-          const genre = statsStore.genrePercentages[context.dataIndex];
-          const artists = statsStore.topArtists.items
-            .filter(artist => artist.genres.includes(genre.name))
-            .map(artist => artist.name)
-            .join(', ');
-          return `${genre.name}: ${context.raw}% (${artists})`;
-        }
-      }
-    }
   }
 };
 
@@ -113,8 +52,10 @@ onMounted(async () => {
       <div class="flex items-center gap-2">
         <input type="number" :value="statsStore.selectedLimit" @input="handleLimitChange" min="1" max="50"
           class="bg-2ndbg text-white px-4 py-2 rounded-lg w-24 text-center font-family" />
-        <button @click="statsStore.fetchTopArtists()"
-          class="bg-primary text-black px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+        <button @click="() => {
+          statsStore.fetchTopArtists();
+          statsStore.fetchTopTracks();
+        }" class="bg-primary text-black px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd"
               d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
@@ -134,16 +75,7 @@ onMounted(async () => {
     </div>
 
     <div v-else-if="statsStore.genrePercentages.length" class="flex flex-col items-center gap-8">
-      <div class="w-1/3 aspect-square">
-        <div class="bg-2ndbg p-6 rounded-lg w-full mx-auto aspect-square">
-          <Pie :data="chartData" :options="chartOptions" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-10 gap-6">
-        <ArtistCard v-for="artist in artists" :key="artist.name" :artist="artist"
-          @click="() => openSpotifyUrl(artist.spotifyUrl)" />
-      </div>
+      <BandsAndSongs />
     </div>
 
     <div v-else class="text-center text-white p-4 font-family">
