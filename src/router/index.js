@@ -22,6 +22,12 @@ const router = createRouter({
       component: () => import("../views/FAQView.vue"),
       meta: { requiresAuth: false },
     },
+    {
+      path: "/",
+      name: "root",
+      component: () => import("../views/CallbackView.vue"),
+      meta: { requiresAuth: false },
+    },
   ],
 });
 
