@@ -28,7 +28,6 @@ export const useStatsStore = defineStore("stats", () => {
 
     const genreCounts = topArtists.value.items.reduce((acc, artist) => {
       if (!artist.genres || artist.genres.length === 0) {
-        // Handle artists with no genres
         acc["Bez žánru"] = (acc["Bez žánru"] || 0) + 1;
       } else {
         artist.genres.forEach((genre) => {
@@ -53,9 +52,11 @@ export const useStatsStore = defineStore("stats", () => {
       .slice(0, 10);
   });
 
-  // Token validation
+  // Enhanced token validation with logging
   const validateToken = async () => {
+    console.log("Validating token...");
     if (!oauthStore.accessToken) {
+      console.error("No access token found");
       error.value = "No access token available";
       router.push("/login");
       return false;
@@ -65,58 +66,92 @@ export const useStatsStore = defineStore("stats", () => {
       const response = await fetch("https://api.spotify.com/v1/me", {
         headers: {
           Authorization: `Bearer ${oauthStore.accessToken}`,
+          Accept: "application/json",
         },
       });
 
+      console.log("Token validation status:", response.status);
+
       if (response.status === 401) {
+        console.error("Token expired");
         error.value = "Token expired";
         oauthStore.logout();
         router.push("/login");
         return false;
       }
 
-      return response.ok;
+      if (!response.ok) {
+        throw new Error(`Validation failed: ${response.status}`);
+      }
+
+      console.log("Token validated successfully");
+      return true;
     } catch (e) {
+      console.error("Token validation error:", e);
       error.value = "Failed to validate token";
       return false;
     }
   };
 
-  // Fetch with retry
+  // Enhanced fetch with retry and logging
   const fetchWithRetry = async (url, options, retries = 3) => {
-    try {
-      const response = await fetch(url, options);
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        console.log(`Attempt ${attempt + 1} to fetch ${url}`);
 
-      if (response.status === 401 && retries > 0) {
-        await validateToken();
-        return fetchWithRetry(url, options, retries - 1);
-      }
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            Accept: "application/json",
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (response.status === 401 && attempt < retries - 1) {
+          console.log("Token expired, validating...");
+          const isValid = await validateToken();
+          if (!isValid) throw new Error("Token validation failed");
+          continue;
+        }
 
-      return response;
-    } catch (e) {
-      if (retries > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return fetchWithRetry(url, options, retries - 1);
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After") || 3;
+          console.log(`Rate limited, waiting ${retryAfter}s`);
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfter * 1000)
+          );
+          continue;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Data fetched successfully");
+        return data;
+      } catch (e) {
+        console.error(`Attempt ${attempt + 1} failed:`, e);
+        if (attempt === retries - 1) throw e;
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * Math.pow(2, attempt))
+        );
       }
-      throw e;
     }
   };
 
-  // Fetch top artists
+  // Enhanced top artists fetch
   const fetchTopArtists = async () => {
     loading.value = true;
     error.value = null;
 
     try {
+      console.log("Fetching top artists...");
       if (!(await validateToken())) {
         return;
       }
 
-      const response = await fetchWithRetry(
+      const data = await fetchWithRetry(
         `https://api.spotify.com/v1/me/top/artists?time_range=${selectedTimeRange.value}&limit=${selectedLimit.value}`,
         {
           headers: {
@@ -125,11 +160,11 @@ export const useStatsStore = defineStore("stats", () => {
         }
       );
 
-      topArtists.value = await response.json();
+      topArtists.value = data;
+      console.log("Top artists fetched successfully:", data.items.length);
     } catch (e) {
       error.value = e.message;
       console.error("Error fetching top artists:", e);
-
       if (e.message.includes("401")) {
         router.push("/login");
       }
@@ -138,17 +173,18 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
-  // Fetch top tracks
+  // Enhanced top tracks fetch
   const fetchTopTracks = async () => {
     loading.value = true;
     error.value = null;
 
     try {
+      console.log("Fetching top tracks...");
       if (!(await validateToken())) {
         return;
       }
 
-      const response = await fetchWithRetry(
+      const data = await fetchWithRetry(
         `https://api.spotify.com/v1/me/top/tracks?time_range=${selectedTimeRange.value}&limit=${selectedLimit.value}`,
         {
           headers: {
@@ -157,11 +193,11 @@ export const useStatsStore = defineStore("stats", () => {
         }
       );
 
-      topTracks.value = await response.json();
+      topTracks.value = data;
+      console.log("Top tracks fetched successfully:", data.items.length);
     } catch (e) {
       error.value = e.message;
       console.error("Error fetching top tracks:", e);
-
       if (e.message.includes("401")) {
         router.push("/login");
       }
@@ -170,16 +206,20 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
-  // Update functions
+  // Update functions with validation
   function updateTimeRange(timeRange) {
+    console.log("Updating time range to:", timeRange);
     if (timeRangeOptions.some((option) => option.value === timeRange)) {
       selectedTimeRange.value = timeRange;
       fetchTopArtists();
       fetchTopTracks();
+    } else {
+      console.error("Invalid time range:", timeRange);
     }
   }
 
   function updateLimit(limit) {
+    console.log("Updating limit to:", limit);
     const numLimit = Math.min(Math.max(Math.floor(Number(limit)) || 1, 1), 50);
     selectedLimit.value = numLimit;
     fetchTopArtists();
