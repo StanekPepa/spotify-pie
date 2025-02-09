@@ -7,21 +7,16 @@ const route = useRoute();
 const oauthStore = useOAuthStore();
 const userProfile = ref(null);
 const showDropdown = ref(false);
-
-const isHomeActive = computed(() => {
-    return route.path === '/' || route.path === '/home';
-});
-
-const isFaqActive = computed(() => {
-    return route.path === '/faq';
-});
+const loading = ref(false);
 
 const fetchProfile = async () => {
     try {
+        loading.value = true;
         if (oauthStore.isAuthenticated) {
             const profile = await oauthStore.getUserProfile();
             if (profile) {
                 userProfile.value = profile;
+                console.log('Profile loaded:', profile); // Debug log
             }
         } else {
             userProfile.value = null;
@@ -29,9 +24,12 @@ const fetchProfile = async () => {
     } catch (error) {
         console.error('Failed to fetch user profile:', error);
         userProfile.value = null;
+    } finally {
+        loading.value = false;
     }
 };
 
+// Update the watch to be immediate
 watch(() => oauthStore.isAuthenticated, (newValue) => {
     if (newValue) {
         fetchProfile();
@@ -40,7 +38,11 @@ watch(() => oauthStore.isAuthenticated, (newValue) => {
     }
 }, { immediate: true });
 
-onMounted(fetchProfile);
+onMounted(() => {
+    if (oauthStore.isAuthenticated) {
+        fetchProfile();
+    }
+});
 </script>
 
 <template>
@@ -57,26 +59,20 @@ onMounted(fetchProfile);
                 }">faq</RouterLink>
             </div>
 
-            <div v-if="userProfile" class="relative">
-                <button @click="showDropdown = !showDropdown"
-                    class="flex items-center gap-3 text-black hover:opacity-80 transition-opacity cursor-pointer font-family bg-primary px-4 py-2 rounded-full text-base">
-                    <img :src="userProfile.images?.[0]?.url" alt="Profile" class="w-8 h-8 rounded-full" />
-                    <span>{{ userProfile.display_name }}</span>
+            <div v-if="oauthStore.isAuthenticated" class="relative">
+                <button v-if="loading" class="flex items-center gap-3 text-black bg-primary px-4 py-2 rounded-full">
+                    <div class="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full"></div>
+                    Loading...
                 </button>
 
-                <div v-if="showDropdown"
-                    class="absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur-lg rounded-lg shadow-lg pt-2 z-50"
-                    @mouseleave="showDropdown = false">
-                    <div class="px-4 py-2 border-b border-primary">
-                        <p class="text-white font-family">{{ userProfile.email }}</p>
-                        <p class="text-gray-400 text-sm font-family">Country: {{ userProfile.country }}</p>
-                    </div>
-                    <button @click="oauthStore.logout()"
-                        class="w-full text-left px-4 py-2 text-red-500 hover:bg-primary hover:text-black transition cursor-pointer font-family hover:rounded-b-lg">
-                        Logout
-                    </button>
-                </div>
+                <button v-else-if="userProfile" @click="showDropdown = !showDropdown"
+                    class="flex items-center gap-3 text-black hover:opacity-80 transition-opacity cursor-pointer font-family bg-primary px-4 py-2 rounded-full text-base">
+                    <img v-if="userProfile.images?.[0]?.url" :src="userProfile.images[0].url" alt="Profile"
+                        class="w-8 h-8 rounded-full" />
+                    <span>{{ userProfile.display_name || 'User' }}</span>
+                </button>
             </div>
+
         </nav>
     </header>
 </template>

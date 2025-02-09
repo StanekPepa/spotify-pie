@@ -82,7 +82,35 @@ export const useOAuthStore = defineStore("oauth", () => {
   if (storedToken) {
     accessToken.value = storedToken;
   }
+  async function getUserProfile() {
+    try {
+      if (!accessToken.value) {
+        throw new Error("No access token");
+      }
 
+      const response = await fetch("https://api.spotify.com/v1/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken.value}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          logout();
+          throw new Error("Session expired");
+        }
+        throw new Error("Failed to fetch profile");
+      }
+
+      return await response.json();
+    } catch (e) {
+      error.value = e.message;
+      console.error("Profile fetch error:", e);
+      return null;
+    }
+  }
+
+  // Add to return statement
   return {
     accessToken,
     isAuthenticated,
@@ -90,5 +118,6 @@ export const useOAuthStore = defineStore("oauth", () => {
     login,
     handleCallback,
     logout,
+    getUserProfile, // Add this line
   };
 });
