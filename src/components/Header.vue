@@ -59,20 +59,26 @@ onMounted(() => {
                 }">faq</RouterLink>
             </div>
 
-            <div v-if="oauthStore.isAuthenticated" class="relative">
-                <button v-if="loading" class="flex items-center gap-3 text-black bg-primary px-4 py-2 rounded-full">
-                    <div class="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full"></div>
-                    Loading...
-                </button>
-
-                <button v-else-if="userProfile" @click="showDropdown = !showDropdown"
+            <div v-if="userProfile" class="relative">
+                <button @click="showDropdown = !showDropdown"
                     class="flex items-center gap-3 text-black hover:opacity-80 transition-opacity cursor-pointer font-family bg-primary px-4 py-2 rounded-full text-base">
-                    <img v-if="userProfile.images?.[0]?.url" :src="userProfile.images[0].url" alt="Profile"
-                        class="w-8 h-8 rounded-full" />
-                    <span>{{ userProfile.display_name || 'User' }}</span>
+                    <img :src="userProfile.images?.[0]?.url" alt="Profile" class="w-8 h-8 rounded-full" />
+                    <span>{{ userProfile.display_name }}</span>
                 </button>
-            </div>
 
+                <div v-if="showDropdown"
+                    class="absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur-lg rounded-lg shadow-lg pt-2 z-50"
+                    @mouseleave="showDropdown = false">
+                    <div class="px-4 py-2 border-b border-primary">
+                        <p class="text-white font-family">{{ userProfile.email }}</p>
+                        <p class="text-gray-400 text-sm font-family">Country: {{ userProfile.country }}</p>
+                    </div>
+                    <button @click="oauthStore.logout()"
+                        class="w-full text-left px-4 py-2 text-red-500 hover:bg-primary hover:text-black transition cursor-pointer font-family hover:rounded-b-lg">
+                        Logout
+                    </button>
+                </div>
+            </div>
         </nav>
     </header>
 </template>
