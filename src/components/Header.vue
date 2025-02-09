@@ -9,6 +9,10 @@ const userProfile = ref(null);
 const showDropdown = ref(false);
 const loading = ref(false);
 
+
+const isHomeActive = computed(() => route.path === '/home' || route.path === '/');
+const isFaqActive = computed(() => route.path === '/faq');
+
 const fetchProfile = async () => {
     try {
         loading.value = true;
@@ -29,7 +33,6 @@ const fetchProfile = async () => {
     }
 };
 
-// Update the watch to be immediate
 watch(() => oauthStore.isAuthenticated, (newValue) => {
     if (newValue) {
         fetchProfile();
@@ -82,6 +85,3 @@ onMounted(() => {
         </nav>
     </header>
 </template>
-
-
-<!-- Dodělat tlačítko na releasese dis na stáhnutí apky po buildu electronu -->
