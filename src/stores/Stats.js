@@ -14,6 +14,7 @@ export const useStatsStore = defineStore("stats", () => {
   const error = ref(null);
   const selectedTimeRange = ref("short_term");
   const selectedLimit = ref(20);
+  const retryCount = ref(0);
 
   // Constants
   const timeRangeOptions = [
@@ -52,70 +53,78 @@ export const useStatsStore = defineStore("stats", () => {
       .slice(0, 10);
   });
 
-  // Enhanced token validation with logging
+  // Enhanced token validation with better error handling
   const validateToken = async () => {
-    console.log("Validating token...");
-    if (!oauthStore.accessToken) {
-      console.error("No access token found");
-      error.value = "No access token available";
-      router.push("/login");
-      return false;
-    }
-
     try {
+      console.log("Validating token with retry count:", retryCount.value);
+
+      if (!oauthStore.accessToken) {
+        throw new Error("No access token available");
+      }
+
       const response = await fetch("https://api.spotify.com/v1/me", {
         headers: {
           Authorization: `Bearer ${oauthStore.accessToken}`,
           Accept: "application/json",
+          "Content-Type": "application/json",
         },
       });
 
       console.log("Token validation status:", response.status);
 
       if (response.status === 401) {
-        console.error("Token expired");
-        error.value = "Token expired";
-        oauthStore.logout();
-        router.push("/login");
-        return false;
+        if (retryCount.value < 3) {
+          retryCount.value++;
+          console.log("Token expired, attempting refresh...");
+          await oauthStore.login();
+          return false;
+        } else {
+          throw new Error("Maximum retry attempts reached");
+        }
       }
 
       if (!response.ok) {
         throw new Error(`Validation failed: ${response.status}`);
       }
 
-      console.log("Token validated successfully");
+      retryCount.value = 0;
       return true;
     } catch (e) {
       console.error("Token validation error:", e);
-      error.value = "Failed to validate token";
+      error.value = e.message;
       return false;
     }
   };
 
-  // Enhanced fetch with retry and logging
-  const fetchWithRetry = async (url, options, retries = 3) => {
-    for (let attempt = 0; attempt < retries; attempt++) {
+  // Enhanced fetch with improved retry and logging
+  const fetchWithRetry = async (url, options, maxRetries = 3) => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        console.log(`Attempt ${attempt + 1} to fetch ${url}`);
+        console.log(`Attempt ${attempt + 1}/${maxRetries} for ${url}`);
 
         const response = await fetch(url, {
           ...options,
           headers: {
             ...options.headers,
             Accept: "application/json",
+            "Content-Type": "application/json",
           },
         });
 
-        if (response.status === 401 && attempt < retries - 1) {
+        if (response.status === 401 && attempt < maxRetries - 1) {
           console.log("Token expired, validating...");
           const isValid = await validateToken();
-          if (!isValid) throw new Error("Token validation failed");
+          if (!isValid) {
+            oauthStore.logout();
+            throw new Error("Authentication failed");
+          }
           continue;
         }
 
         if (response.status === 429) {
-          const retryAfter = response.headers.get("Retry-After") || 3;
+          const retryAfter = parseInt(
+            response.headers.get("Retry-After") || "3"
+          );
           console.log(`Rate limited, waiting ${retryAfter}s`);
           await new Promise((resolve) =>
             setTimeout(resolve, retryAfter * 1000)
@@ -132,15 +141,15 @@ export const useStatsStore = defineStore("stats", () => {
         return data;
       } catch (e) {
         console.error(`Attempt ${attempt + 1} failed:`, e);
-        if (attempt === retries - 1) throw e;
+        if (attempt === maxRetries - 1) throw e;
         await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * Math.pow(2, attempt))
+          setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt), 10000))
         );
       }
     }
   };
 
-  // Enhanced top artists fetch
+  // Enhanced data fetching functions
   const fetchTopArtists = async () => {
     loading.value = true;
     error.value = null;
@@ -148,7 +157,7 @@ export const useStatsStore = defineStore("stats", () => {
     try {
       console.log("Fetching top artists...");
       if (!(await validateToken())) {
-        return;
+        throw new Error("Token validation failed");
       }
 
       const data = await fetchWithRetry(
@@ -159,6 +168,10 @@ export const useStatsStore = defineStore("stats", () => {
           },
         }
       );
+
+      if (!data || !data.items) {
+        throw new Error("Invalid response format");
+      }
 
       topArtists.value = data;
       console.log("Top artists fetched successfully:", data.items.length);
@@ -173,7 +186,6 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
-  // Enhanced top tracks fetch
   const fetchTopTracks = async () => {
     loading.value = true;
     error.value = null;
@@ -181,7 +193,7 @@ export const useStatsStore = defineStore("stats", () => {
     try {
       console.log("Fetching top tracks...");
       if (!(await validateToken())) {
-        return;
+        throw new Error("Token validation failed");
       }
 
       const data = await fetchWithRetry(
@@ -192,6 +204,10 @@ export const useStatsStore = defineStore("stats", () => {
           },
         }
       );
+
+      if (!data || !data.items) {
+        throw new Error("Invalid response format");
+      }
 
       topTracks.value = data;
       console.log("Top tracks fetched successfully:", data.items.length);
@@ -206,24 +222,33 @@ export const useStatsStore = defineStore("stats", () => {
     }
   };
 
-  // Update functions with validation
-  function updateTimeRange(timeRange) {
+  // Update functions
+  const updateTimeRange = (timeRange) => {
     console.log("Updating time range to:", timeRange);
     if (timeRangeOptions.some((option) => option.value === timeRange)) {
       selectedTimeRange.value = timeRange;
-      fetchTopArtists();
-      fetchTopTracks();
+      Promise.all([fetchTopArtists(), fetchTopTracks()]).catch((e) =>
+        console.error("Error updating data:", e)
+      );
     } else {
       console.error("Invalid time range:", timeRange);
     }
-  }
+  };
 
-  function updateLimit(limit) {
+  const updateLimit = (limit) => {
     console.log("Updating limit to:", limit);
     const numLimit = Math.min(Math.max(Math.floor(Number(limit)) || 1, 1), 50);
     selectedLimit.value = numLimit;
-    fetchTopArtists();
-    fetchTopTracks();
+    Promise.all([fetchTopArtists(), fetchTopTracks()]).catch((e) =>
+      console.error("Error updating data:", e)
+    );
+  };
+
+  // Initialize data on store creation
+  if (oauthStore.isAuthenticated) {
+    Promise.all([fetchTopArtists(), fetchTopTracks()]).catch((e) =>
+      console.error("Error initializing data:", e)
+    );
   }
 
   return {
