@@ -9,45 +9,16 @@ export const useOAuthStore = defineStore("oauth", () => {
   const error = ref(null);
 
   const clientId = "2a98d7f1b9b04a39bef63e7492ba2dcc";
-  const redirectUri = import.meta.env.PROD
-    ? "https://spotify.stanekj.com"
-    : "http://localhost:5173";
+  const redirectUri = "https://spotify.stanekj.com/home";
   const scope = "user-read-private user-read-email user-top-read";
 
   function login() {
-    // Clear any existing tokens before login
     localStorage.removeItem("spotify_token");
-    accessToken.value = null;
-
+    const state = Math.random().toString(36).substring(7);
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&scope=${encodeURIComponent(scope)}`;
+    )}&scope=${encodeURIComponent(scope)}&state=${state}`;
     window.location.href = authUrl;
-  }
-
-  async function getUserProfile() {
-    try {
-      error.value = null;
-      const response = await fetch("https://api.spotify.com/v1/me", {
-        headers: {
-          Authorization: `Bearer ${accessToken.value}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Handle expired or invalid token
-          logout();
-          throw new Error("Session expired. Please login again.");
-        }
-        throw new Error("Failed to fetch user profile");
-      }
-
-      return await response.json();
-    } catch (e) {
-      error.value = e.message;
-      return null;
-    }
   }
 
   function handleCallback() {
@@ -61,20 +32,19 @@ export const useOAuthStore = defineStore("oauth", () => {
         throw new Error(`Authentication failed: ${error}`);
       }
 
-      if (!token) {
-        throw new Error("No access token received");
+      if (token) {
+        accessToken.value = token;
+        localStorage.setItem("spotify_token", token);
+
+        // Clean URL and redirect
+        window.history.replaceState({}, document.title, "/");
+        router.push("/home");
+      } else {
+        router.push("/login");
       }
-
-      // Store token
-      accessToken.value = token;
-      localStorage.setItem("spotify_token", token);
-
-      // Clear hash and redirect
-      window.history.replaceState({}, document.title, "/");
-      router.push("/home");
     } catch (e) {
       error.value = e.message;
-      router.push("/");
+      router.push("/login");
     }
   }
 
@@ -84,7 +54,7 @@ export const useOAuthStore = defineStore("oauth", () => {
     router.push("/");
   }
 
-  // Initialize from localStorage on store creation
+  // Initialize from localStorage
   const storedToken = localStorage.getItem("spotify_token");
   if (storedToken) {
     accessToken.value = storedToken;
