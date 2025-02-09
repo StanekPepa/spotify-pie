@@ -12,41 +12,24 @@ export const useOAuthStore = defineStore("oauth", () => {
   const redirectUri = import.meta.env.PROD
     ? "https://spotify.stanekj.com"
     : "http://localhost:5173";
-  const scope = "user-read-private user-read-email user-top-read";
-
-  function login() {
-    localStorage.removeItem("spotify_token");
-    const state = Math.random().toString(36).substring(7);
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&scope=${encodeURIComponent(scope)}&state=${state}`;
-    window.location.href = authUrl;
-  }
 
   function handleCallback() {
     try {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const token = params.get("access_token");
-      const error = params.get("error");
-
-      if (error) {
-        throw new Error(`Authentication failed: ${error}`);
-      }
 
       if (token) {
         accessToken.value = token;
         localStorage.setItem("spotify_token", token);
-
-        // Clean URL and redirect
         window.history.replaceState({}, document.title, "/");
         router.push("/home");
       } else {
-        router.push("/login");
+        throw new Error("No access token received");
       }
     } catch (e) {
       error.value = e.message;
-      router.push("/login");
+      router.push("/");
     }
   }
 
