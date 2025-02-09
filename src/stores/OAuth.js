@@ -12,12 +12,42 @@ export const useOAuthStore = defineStore("oauth", () => {
   const redirectUri = import.meta.env.PROD
     ? "https://spotify.stanekj.com/callback"
     : "http://localhost:5173/callback";
+  const scope = "user-read-private user-read-email user-top-read";
+
+  function login() {
+    try {
+      const state = Math.random().toString(36).substring(7);
+      localStorage.setItem("spotify_auth_state", state);
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: "token",
+        redirect_uri: redirectUri,
+        scope: scope,
+        state: state,
+        show_dialog: true,
+      });
+
+      window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    } catch (e) {
+      error.value = e.message;
+      router.push("/");
+    }
+  }
 
   function handleCallback() {
     try {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const token = params.get("access_token");
+      const state = params.get("state");
+      const storedState = localStorage.getItem("spotify_auth_state");
+
+      if (state !== storedState) {
+        throw new Error("State mismatch");
+      }
+
+      localStorage.removeItem("spotify_auth_state");
 
       if (token) {
         accessToken.value = token;
@@ -36,6 +66,7 @@ export const useOAuthStore = defineStore("oauth", () => {
   function logout() {
     accessToken.value = null;
     localStorage.removeItem("spotify_token");
+    localStorage.removeItem("spotify_auth_state");
     router.push("/");
   }
 
@@ -51,7 +82,6 @@ export const useOAuthStore = defineStore("oauth", () => {
     error,
     login,
     handleCallback,
-    getUserProfile,
     logout,
   };
 });
