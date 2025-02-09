@@ -16,7 +16,7 @@ function createWindow() {
   win.show();
 
   if (process.env.NODE_ENV === "development") {
-    win.loadURL("http://localhost:5173");
+    win.loadURL("https://spotify.stanekj.com");
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
