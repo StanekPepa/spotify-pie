@@ -40,15 +40,16 @@ onMounted(async () => {
 
 <template>
   <main>
-    <article class="flex flex-col mx-auto items-center my-10 text-white font-family">
-      <h2 class="text-2xl font-bold">Top Artists</h2>
-      <p class="text-lg">Na této stráce si můžeš vyhledat své nejoblíbenější interprety a písničky. Pomocí čísla u počtu
+    <article class="flex flex-col mx-auto items-center my-10 text-white font-family px-4">
+      <h2 class="text-2xl font-bold mb-5">Top Artists</h2>
+      <p class="text-lg mb-5">Na této stráce si můžeš vyhledat své nejoblíbenější interprety a písničky. Pomocí čísla u
+        počtu
         položek ovlivníš kolik interpretů/písniček uvidíš</p>
       <p class="text-lg">Pod grafy naleznete sekci s umělci, která je seřazená dle oblíbenosti v danném období (nahoře
         vlevo se nachází nejoblíbenější interpret.)</p>
     </article>
     <div v-if="statsStore" class="container mx-auto px-4 py-8">
-      <div class="mb-8 flex gap-4 justify-center items-center">
+      <div class="mb-8 flex gap-8 sm:gap-4 justify-center items-center sm:flex-row flex-col ">
         <div class="relative">
           <label for="timeRange" class="absolute -top-6 left-0 text-white/60 text-sm font-family">
             Období
