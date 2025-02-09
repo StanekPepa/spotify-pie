@@ -23,8 +23,8 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
-      path: "/",
-      name: "root",
+      path: "/callback",
+      name: "callback",
       component: () => import("../views/CallbackView.vue"),
       meta: { requiresAuth: false },
     },

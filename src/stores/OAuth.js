@@ -10,8 +10,8 @@ export const useOAuthStore = defineStore("oauth", () => {
 
   const clientId = "2a98d7f1b9b04a39bef63e7492ba2dcc";
   const redirectUri = import.meta.env.PROD
-    ? "https://spotify.stanekj.com"
-    : "http://localhost:5173";
+    ? "https://spotify.stanekj.com/callback"
+    : "http://localhost:5173/callback";
 
   function handleCallback() {
     try {
