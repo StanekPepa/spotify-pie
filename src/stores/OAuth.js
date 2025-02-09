@@ -44,7 +44,7 @@ export const useOAuthStore = defineStore("oauth", () => {
     if (token) {
       accessToken.value = token;
       localStorage.setItem("spotify_token", token);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.location.replace("/home");
     }
   }
 
