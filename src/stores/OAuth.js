@@ -8,10 +8,8 @@ export const useOAuthStore = defineStore("oauth", () => {
   const isAuthenticated = computed(() => !!accessToken.value);
   const error = ref(null);
 
-  const clientId = "2a98d7f1b9b04a39bef63e7492ba2dcc";
-  const redirectUri = import.meta.env.PROD
-    ? "https://spotify.stanekj.com/callback"
-    : "http://localhost:5173/callback";
+  const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+  const redirectUri = import.meta.env.VITE_REDIRECT_URI;
   const scope = "user-read-private user-read-email user-top-read";
 
   function login() {
@@ -50,9 +48,18 @@ export const useOAuthStore = defineStore("oauth", () => {
       localStorage.removeItem("spotify_auth_state");
 
       if (token) {
+        // Store token and immediately clean URL
         accessToken.value = token;
         localStorage.setItem("spotify_token", token);
-        window.history.replaceState({}, document.title, "/");
+
+        // Clean URL without triggering a reload
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        // Navigate to home
         router.push("/home");
       } else {
         throw new Error("No access token received");
