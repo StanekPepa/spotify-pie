@@ -1,15 +1,15 @@
-[build]
-builder = "nixpacks"
+[phases]
+setup = { nixPkgs = ["nodejs", "pnpm"] }
+install = { cmds = ["corepack enable", "corepack prepare pnpm@latest --activate", "pnpm install"] }
+build = { cmds = ["pnpm run build"] }
 
 [start]
-cmd = "pnpm run build && pnpm run preview"
+cmd = "pnpm run preview"
 port = "5173"
-
-[setup]
-node_version = "20"
 
 [env]
 PORT = "5173"
+NODE_ENV = "production"
 
 [container]
 user = "node"
@@ -30,16 +30,3 @@ workdir = "/app"
 "traefik.http.routers.spotify-app-secure.tls.certresolver" = "letsencrypt"
 "traefik.http.routers.spotify-app-secure.tls" = "true"
 "traefik.http.services.spotify-app-service.loadbalancer.server.port" = "5173"
-
-[phases.setup]
-nixpkgs = ["nodejs", "pnpm"]
-cmds = ["corepack enable", "corepack prepare pnpm@latest --activate"]
-
-[phases.install]
-cmd = "pnpm install"
-
-[phases.build]
-cmd = "pnpm run build"
-
-[phases.start]
-cmd = "pnpm run preview"
