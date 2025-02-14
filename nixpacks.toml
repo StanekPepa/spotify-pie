@@ -1,0 +1,45 @@
+[build]
+builder = "nixpacks"
+
+[start]
+cmd = "pnpm run build && pnpm run preview"
+port = "5173"
+
+[setup]
+node_version = "20"
+
+[env]
+PORT = "5173"
+
+[container]
+user = "node"
+workdir = "/app"
+
+[container.labels]
+"traefik.enable" = "true"
+"traefik.http.middlewares.gzip.compress" = "true"
+"traefik.http.middlewares.redirect-to-https.redirectscheme.scheme" = "https"
+"traefik.http.routers.spotify-app.entrypoints" = "http"
+"traefik.http.routers.spotify-app.middlewares" = "redirect-to-https"
+"traefik.http.routers.spotify-app.rule" = "Host(`spotify.stanekj.com`)"
+"traefik.http.routers.spotify-app.service" = "spotify-app-service"
+"traefik.http.routers.spotify-app-secure.entrypoints" = "https"
+"traefik.http.routers.spotify-app-secure.middlewares" = "gzip"
+"traefik.http.routers.spotify-app-secure.rule" = "Host(`spotify.stanekj.com`)"
+"traefik.http.routers.spotify-app-secure.service" = "spotify-app-service"
+"traefik.http.routers.spotify-app-secure.tls.certresolver" = "letsencrypt"
+"traefik.http.routers.spotify-app-secure.tls" = "true"
+"traefik.http.services.spotify-app-service.loadbalancer.server.port" = "5173"
+
+[phases.setup]
+nixpkgs = ["nodejs", "pnpm"]
+cmds = ["corepack enable", "corepack prepare pnpm@latest --activate"]
+
+[phases.install]
+cmd = "pnpm install"
+
+[phases.build]
+cmd = "pnpm run build"
+
+[phases.start]
+cmd = "pnpm run preview"
