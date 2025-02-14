@@ -1,10 +1,10 @@
 [phases]
-setup = { nixPkgs = ["nodejs", "pnpm"] }
-install = { cmds = ["corepack enable", "corepack prepare pnpm@latest --activate", "pnpm install"] }
-build = { cmds = ["pnpm run build"] }
+setup = { nixPkgs = ["nodejs"] }
+install = { cmds = ["npm install"] }
+build = { cmds = ["npm run build"] }
 
 [start]
-cmd = "pnpm run preview"
+cmd = "npm run preview"
 port = "5173"
 
 [env]
