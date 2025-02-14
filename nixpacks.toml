@@ -4,12 +4,13 @@ install = { cmds = ["npm install"] }
 build = { cmds = ["npm run build"] }
 
 [start]
-cmd = "npm run preview"
-port = "5173"
+cmd = "npm run preview -- --host 0.0.0.0"
+port = "4173"
 
 [env]
-PORT = "5173"
+PORT = "4173"
 NODE_ENV = "production"
+HOST = "0.0.0.0"
 
 [container]
 user = "node"
@@ -29,4 +30,4 @@ workdir = "/app"
 "traefik.http.routers.spotify-app-secure.service" = "spotify-app-service"
 "traefik.http.routers.spotify-app-secure.tls.certresolver" = "letsencrypt"
 "traefik.http.routers.spotify-app-secure.tls" = "true"
-"traefik.http.services.spotify-app-service.loadbalancer.server.port" = "5173"
+"traefik.http.services.spotify-app-service.loadbalancer.server.port" = "4173"
