@@ -19,6 +19,7 @@ export default defineConfig({
     headers: {
       "Access-Control-Allow-Origin": "*",
     },
+    allowedHosts: ["spotify.stanekj.com", "localhost"],
   },
   base: "/",
   resolve: {
