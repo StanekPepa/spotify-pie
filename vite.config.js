@@ -6,22 +6,41 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
-    host: "0.0.0.0",
+    host: true,
     port: 4173,
+    strictPort: true,
+    https: false,
   },
   preview: {
-    host: "0.0.0.0",
+    host: true,
     port: 4173,
-    allowedHosts: ["spotify.stanekj.com", ".stanekj.com"],
+    strictPort: true,
+    https: false,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+    },
   },
-  base: "./",
+  base: "/",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
-    build: {
-      outDir: "dist",
-      assetsDir: "assets",
+  },
+  build: {
+    outDir: "dist",
+    assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
     },
+  },
+  define: {
+    "process.env.VITE_SPOTIFY_CLIENT_ID": JSON.stringify(
+      process.env.VITE_SPOTIFY_CLIENT_ID
+    ),
+    "process.env.VITE_REDIRECT_URI": JSON.stringify(
+      process.env.VITE_REDIRECT_URI || "https://spotify.stanekj.com/callback"
+    ),
   },
 });
