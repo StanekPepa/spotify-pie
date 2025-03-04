@@ -5,36 +5,183 @@ import { useRouter } from "vue-router";
 export const useOAuthStore = defineStore("oauth", () => {
   const router = useRouter();
   const accessToken = ref(null);
+  const refreshToken = ref(null);
+  const tokenExpiry = ref(null);
   const isAuthenticated = computed(() => !!accessToken.value);
   const error = ref(null);
   const loading = ref(false);
 
   const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+  const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET;
   const redirectUri = import.meta.env.VITE_REDIRECT_URI;
   const scope = "user-read-private user-read-email user-top-read";
+  const TOKEN_FILE_PATH = "spotify_tokens.json";
+
+  async function saveTokensToFile() {
+    try {
+      const tokenData = JSON.stringify({
+        accessToken: accessToken.value,
+        refreshToken: refreshToken.value,
+        expiry: tokenExpiry.value,
+      });
+
+      const result = await window.electronAPI.writeFile(
+        TOKEN_FILE_PATH,
+        tokenData
+      );
+      if (!result.success) {
+        console.error("Chyba při ukládání tokenů:", result.error);
+      }
+    } catch (e) {
+      console.error("Chyba při ukládání tokenů:", e);
+    }
+  }
+
+  async function loadTokensFromFile() {
+    try {
+      const result = await window.electronAPI.readFile(TOKEN_FILE_PATH);
+      if (result.success) {
+        return JSON.parse(result.data);
+      }
+      return null;
+    } catch (e) {
+      console.error("Chyba při načítání tokenů:", e);
+      return null;
+    }
+  }
 
   async function validateToken(token) {
     try {
-      console.log("Validating token...");
       const response = await fetch("https://api.spotify.com/v1/me", {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
       });
+      return response.ok;
+    } catch (e) {
+      return false;
+    }
+  }
 
-      console.log("Token validation status:", response.status);
+  function login() {
+    try {
+      const state = Math.random().toString(36).substring(7);
+      localStorage.setItem("spotify_auth_state", state);
 
-      if (response.status === 401) {
-        console.error("Token validation failed: Unauthorized");
-        return false;
+      const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: "code",
+        redirect_uri: redirectUri,
+        scope: scope,
+        state: state,
+        show_dialog: true,
+      });
+
+      window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    } catch (e) {
+      error.value = e.message;
+      router.push("/");
+    }
+  }
+
+  async function handleCallback() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      const state = urlParams.get("state");
+      const storedState = localStorage.getItem("spotify_auth_state");
+
+      if (state !== storedState) {
+        throw new Error("State mismatch - Security validation failed");
       }
 
-      const isValid = response.ok;
-      console.log("Token validation result:", isValid);
-      return isValid;
+      localStorage.removeItem("spotify_auth_state");
+
+      if (!code) {
+        throw new Error("No authorization code received from Spotify");
+      }
+
+      const basicAuth = btoa(`${clientId}:${clientSecret}`);
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code: code,
+          redirect_uri: redirectUri,
+        }).toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        throw new Error(
+          `Failed to exchange code for tokens: ${errorData.error}`
+        );
+      }
+
+      const data = await response.json();
+      accessToken.value = data.access_token;
+      refreshToken.value = data.refresh_token;
+      tokenExpiry.value = Date.now() + data.expires_in * 1000;
+
+      await saveTokensToFile();
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+      router.push("/home");
     } catch (e) {
-      console.error("Token validation error:", e);
+      error.value = e.message;
+      console.error("Callback error:", e);
+      router.push("/");
+    }
+  }
+
+  async function refreshAccessToken() {
+    try {
+      if (!refreshToken.value) {
+        throw new Error("No refresh token available");
+      }
+
+      if (!clientId || !clientSecret) {
+        throw new Error("Chybí Spotify API credentials");
+      }
+
+      const basicAuth = btoa(`${clientId}:${clientSecret}`);
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken.value,
+        }).toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: response.statusText }));
+        throw new Error(`Failed to refresh token: ${errorData.error}`);
+      }
+
+      const data = await response.json();
+      accessToken.value = data.access_token;
+      if (data.refresh_token) {
+        refreshToken.value = data.refresh_token;
+      }
+      tokenExpiry.value = Date.now() + data.expires_in * 1000;
+
+      await saveTokensToFile();
+      return true;
+    } catch (e) {
+      console.error("Token refresh error:", e);
       return false;
     }
   }
@@ -42,28 +189,34 @@ export const useOAuthStore = defineStore("oauth", () => {
   async function fetchWithRetry(url, options, maxRetries = 3) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        console.log(`Attempt ${attempt + 1} of ${maxRetries} for ${url}`);
+        if (tokenExpiry.value && Date.now() > tokenExpiry.value) {
+          const refreshed = await refreshAccessToken();
+          if (!refreshed) {
+            logout();
+            throw new Error("Failed to refresh token, please login again");
+          }
+        }
 
         const response = await fetch(url, {
           ...options,
           headers: {
             ...options.headers,
+            Authorization: `Bearer ${accessToken.value}`,
             Accept: "application/json",
           },
         });
 
         if (response.status === 401) {
-          console.log("Token expired, validating...");
-          const isValid = await validateToken(accessToken.value);
-          if (!isValid) {
+          const refreshed = await refreshAccessToken();
+          if (!refreshed) {
             logout();
             throw new Error("Session expired, please login again");
           }
+          continue;
         }
 
         if (response.status === 429) {
           const retryAfter = response.headers.get("Retry-After") || 3;
-          console.log(`Rate limited, waiting ${retryAfter}s`);
           await new Promise((resolve) =>
             setTimeout(resolve, retryAfter * 1000)
           );
@@ -76,67 +229,11 @@ export const useOAuthStore = defineStore("oauth", () => {
 
         return response;
       } catch (e) {
-        console.error(`Attempt ${attempt + 1} failed:`, e);
         if (attempt === maxRetries - 1) throw e;
         await new Promise((resolve) =>
           setTimeout(resolve, 1000 * Math.pow(2, attempt))
         );
       }
-    }
-  }
-
-  function login() {
-    try {
-      localStorage.removeItem("spotify_token");
-      const state = Math.random().toString(36).substring(7);
-      localStorage.setItem("spotify_auth_state", state);
-
-      const params = new URLSearchParams({
-        client_id: clientId,
-        response_type: "token",
-        redirect_uri: redirectUri,
-        scope: scope,
-        state: state,
-        show_dialog: true,
-      });
-
-      console.log("Redirecting to Spotify login...");
-      window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
-    } catch (e) {
-      error.value = e.message;
-      console.error("Login error:", e);
-      router.push("/");
-    }
-  }
-
-  function handleCallback() {
-    try {
-      console.log("Processing callback...");
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const token = params.get("access_token");
-      const state = params.get("state");
-      const storedState = localStorage.getItem("spotify_auth_state");
-
-      if (state !== storedState) {
-        throw new Error("State mismatch - Security validation failed");
-      }
-
-      localStorage.removeItem("spotify_auth_state");
-
-      if (!token) {
-        throw new Error("No access token received from Spotify");
-      }
-
-      console.log("Token received successfully");
-      accessToken.value = token;
-      localStorage.setItem("spotify_token", token);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      router.push("/home");
-    } catch (e) {
-      error.value = e.message;
-      console.error("Callback error:", e);
-      router.push("/");
     }
   }
 
@@ -147,23 +244,14 @@ export const useOAuthStore = defineStore("oauth", () => {
         throw new Error("No access token available");
       }
 
-      console.log("Fetching user profile...");
       const response = await fetchWithRetry("https://api.spotify.com/v1/me", {
-        headers: {
-          Authorization: `Bearer ${accessToken.value}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken.value}` },
       });
 
       const data = await response.json();
-      console.log("Profile data received successfully");
       return data;
     } catch (e) {
       error.value = e.message;
-      console.error("Profile fetch error:", {
-        message: e.message,
-        hasToken: !!accessToken.value,
-        isAuthenticated: isAuthenticated.value,
-      });
       return null;
     } finally {
       loading.value = false;
@@ -171,39 +259,47 @@ export const useOAuthStore = defineStore("oauth", () => {
   }
 
   function logout() {
-    console.log("Logging out...");
     accessToken.value = null;
-    localStorage.removeItem("spotify_token");
+    refreshToken.value = null;
+    tokenExpiry.value = null;
+
+    window.electronAPI
+      .writeFile(TOKEN_FILE_PATH, "")
+      .catch((e) => console.error("Chyba při mazání tokenů:", e));
+
     localStorage.removeItem("spotify_auth_state");
     router.push("/");
   }
 
-  // Initialize store with validation
   async function initialize() {
-    console.log("Initializing OAuth store...");
-    const storedToken = localStorage.getItem("spotify_token");
-    if (storedToken) {
-      console.log("Found stored token, validating...");
-      const isValid = await validateToken(storedToken);
-      if (isValid) {
-        console.log("Stored token is valid");
-        accessToken.value = storedToken;
-      } else {
-        console.error("Stored token is invalid");
-        localStorage.removeItem("spotify_token");
+    const tokens = await loadTokensFromFile();
+
+    if (tokens && tokens.accessToken) {
+      accessToken.value = tokens.accessToken;
+      refreshToken.value = tokens.refreshToken;
+      tokenExpiry.value = tokens.expiry;
+
+      if (tokenExpiry.value && Date.now() > tokenExpiry.value) {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          router.push("/login");
+          return;
+        }
+      }
+
+      const isValid = await validateToken(accessToken.value);
+      if (!isValid) {
+        logout();
         router.push("/login");
       }
     }
   }
 
-  // Initialize when store is created
-  initialize().catch((e) => {
-    console.error("Initialization failed:", e);
-    router.push("/login");
-  });
+  initialize().catch(() => router.push("/login"));
 
   return {
     accessToken,
+    refreshToken,
     isAuthenticated,
     error,
     loading,
@@ -212,5 +308,6 @@ export const useOAuthStore = defineStore("oauth", () => {
     logout,
     getUserProfile,
     validateToken,
+    refreshAccessToken,
   };
 });
