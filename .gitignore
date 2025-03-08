@@ -34,3 +34,6 @@ coverage
 .env.local
 .env.*.local
 .env.development
+
+
+spotify_tokens.json

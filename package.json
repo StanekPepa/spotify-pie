@@ -1,6 +1,6 @@
 {
   "name": "spotify-pie",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "main": "./electron/main.cjs",
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "electron:build": "vite build && electron-builder --win",
+    "electron:start": "electron electron/main.cjs",
     "start": "concurrently \"pnpm run dev\" \"wait-on tcp:5173 && pnpm run electron:dev\""
   },
   "build": {

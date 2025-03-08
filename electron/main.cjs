@@ -9,7 +9,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -17,7 +17,7 @@ function createWindow() {
   win.show();
 
   if (process.env.NODE_ENV === "development") {
-    win.loadURL("http://localhost:4173/s");
+    win.loadURL("http://localhost:4173/");
     // win.loadURL("https://spotify.stanekj.com");
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));

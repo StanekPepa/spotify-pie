@@ -21,7 +21,7 @@ export default defineConfig({
     },
     allowedHosts: ["spotify.stanekj.com", "localhost"],
   },
-  base: "/",
+  base: "./",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
